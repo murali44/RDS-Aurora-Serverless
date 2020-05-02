@@ -1,0 +1,41 @@
+Resources:
+  DBMigrationRole:
+      Properties:
+        ManagedPolicyArns:
+          - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole #communicate with resources within a vpc
+        AssumeRolePolicyDocument:
+          Statement:
+          - Action: sts:AssumeRole
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+          Version: '2012-10-17'
+        Path: /
+        Policies:
+        - PolicyDocument:
+            Statement:
+            - Action:
+              - secretsmanager:GetSecretValue
+              Effect: Allow
+              Resource:
+                - !Ref ClusterSecret
+            - Action:
+              - rds-data:ExecuteStatement
+              - rds-data:BeginTransaction
+              - rds-data:RollbackTransaction
+              - rds-data:CommitTransaction
+              Effect: Allow
+              Resource:
+                - ${self:custom.DBClusterARN}
+            - Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+              - logs:CreateLogGroup
+              - logs:DeleteLogGroup
+              Effect: Allow
+              Resource:
+                Fn::GetAtt: [ DBMigrationLogGroup, Arn ]
+            Version: '2012-10-17'
+          PolicyName: ${self:provider.stackName}-DBMigration-GeneratedRoles
+        RoleName: ${self:provider.stackName}-DBMigration
+      Type: AWS::IAM::Role

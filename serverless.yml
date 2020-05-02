@@ -1,0 +1,75 @@
+service: aurora-serverless
+Description: Aurora Serverless Demo
+
+frameworkVersion: '>=1.61.0 <=1.67.0'
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+  region:
+    prod: us-east-2 # Ohio
+    default: us-west-2 # Oregon
+  deletionPolicy:
+    dev: Delete
+    prod: Retain
+  logRetention:
+    prod: 180
+    default: 14
+  DBClusterARN:
+    Fn::Join:
+      - ':'
+      - - 'arn:aws:rds'
+        - Ref: 'AWS::Region'
+        - Ref: 'AWS::AccountId'
+        - 'cluster'
+        - !Ref AuroraDBCluster
+
+provider:
+  name: aws
+  runtime: python3.7
+  stage: dev
+  stackName: ${self:custom.stage}-${self:service.name}
+  region: ${self:custom.region.${self:custom.stage}, self:custom.region.default}
+  stackTags:
+    APP: vfan
+    STAGE: ${self:custom.stage}
+  logs:
+    restApi: true
+  logRetentionInDays: ${self:custom.logRetention.${self:custom.stage}, self:custom.logRetention.default}
+
+functions:
+  DBMigration:
+    name: ${self:provider.stackName}-DBMigration
+    description: Executes DB Schema Migrations.
+    handler: db/db.handler
+    memorySize: 512
+    timeout: 100
+    role: DBMigrationRole
+    dependsOn:
+      - DBMigrationLogGroup
+    environment:
+      DB_CLUSTER_ARN:
+        ${self:custom.DBClusterARN}
+      DB_SECRET_ARN:
+        !Ref ClusterSecret
+
+package:
+  exclude:
+    - node_modules/**
+    - set_env_vars.sh
+    - package.json
+    - package-lock.json
+    - README.md
+
+
+resources:
+  - ${file(resources/stackinfo.yml)}
+  # VPC
+  - ${file(resources/vpc/vpc.yml)}
+  # RDS Aurora Serverless
+  - ${file(resources/rds/AuroraRDSServerless.yml)}
+  # Log Groups
+  - ${file(resources/loggroups/LogGroups.yml)}
+  # cfn Custom Resource
+  - ${file(resources/custom/DBMigrationTrigger.yml)}
+  - ${file(resources/custom/DBMigrationRole.yml)}
+

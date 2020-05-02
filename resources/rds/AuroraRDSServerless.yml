@@ -1,0 +1,87 @@
+Resources:
+  # RDS log group, when created automatically by the serverless framework,
+  # gets orphaned and is not deleted when the cloudformation stack is deleted.
+  # To make sure it is deleted along with the stack,
+  # we create it manually and include it in the stack. 
+  RDSClusterLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+        LogGroupName: /aws/rds/cluster/${self:custom.stage}-vfan-cluster/postgresql
+        RetentionInDays: ${self:provider.logRetentionInDays}
+
+  DBSubnetGroup:
+    Type: 'AWS::RDS::DBSubnetGroup'
+    Properties:
+      DBSubnetGroupDescription: ${self:provider.stackName}-DBSubnetGroup
+      SubnetIds:
+        - !Ref SubnetAPrivate	
+        - !Ref SubnetBPrivate
+
+  SGIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    DependsOn: ClusterSecurityGroup
+    Properties: 
+      Description: "RDS port ingress Self Reference"
+      FromPort: '5432'
+      GroupId: !Ref ClusterSecurityGroup
+      IpProtocol: tcp
+      SourceSecurityGroupId: !Ref ClusterSecurityGroup
+      ToPort: '5432'
+  
+  ClusterSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: !Ref 'AWS::StackName'
+      VpcId:
+        Fn::Join:
+        - ""
+        - - !Ref VPC
+      Tags:
+      - Key: Name
+        Value: ${self:provider.stackName}-AuroraClusterSecurityGroup
+
+
+  # Info about this resource below
+  # https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-secretsmanager-secrettargetattachment.html
+  ClusterSecret:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: ${self:provider.stackName}-AuroraClusterSecret
+      Description: 'This is the Master secret for the vfan RDS Aurora cluster'
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "demo"}'
+        GenerateStringKey: 'password'
+        PasswordLength: 16
+        ExcludeCharacters: '"@/\'
+
+
+  SecretRDSInstanceAttachment:
+    Type: AWS::SecretsManager::SecretTargetAttachment
+    Properties:
+      SecretId: !Ref ClusterSecret
+      TargetId: !Ref AuroraDBCluster
+      TargetType: AWS::RDS::DBCluster
+
+
+  AuroraDBCluster:
+    Type: AWS::RDS::DBCluster
+    UpdateReplacePolicy: ${self:custom.DBUpdateReplacePolicy.${self:custom.stage}, self:custom.DBUpdateReplacePolicy.default}
+    DeletionPolicy: ${self:custom.deletionPolicy.${self:custom.stage}, self:custom.deletionPolicy.default}
+    Properties:
+      DBClusterIdentifier: ${self:custom.DBClusterIdentifier}
+      # DatabaseName: ${self:custom.DatabaseName}
+      Engine: aurora-postgresql
+      EngineMode: serverless
+      EngineVersion: "10.7"
+      EnableHttpEndpoint: true
+      BackupRetentionPeriod: ${self:custom.DBBackupRetentionPeriod.${self:custom.stage}, self:custom.DBBackupRetentionPeriod.default}
+      DeletionProtection: ${self:custom.DBDeletionProtection.${self:custom.stage}, self:custom.DBDeletionProtection.default}
+      MasterUsername: !Join ['', ['{{resolve:secretsmanager:', !Ref ClusterSecret, ':SecretString:username}}' ]]
+      MasterUserPassword: !Join ['', ['{{resolve:secretsmanager:', !Ref ClusterSecret, ':SecretString:password}}' ]]
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      VpcSecurityGroupIds:
+      - !Ref ClusterSecurityGroup  
+      ScalingConfiguration:
+        AutoPause: ${self:custom.DBautopause.${self:custom.stage}, self:custom.DBautopause.default}
+        MinCapacity: ${self:custom.MinTableThroughput}
+        MaxCapacity: ${self:custom.MaxTableThroughput}

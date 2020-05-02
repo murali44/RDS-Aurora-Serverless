@@ -1,0 +1,11 @@
+# These log groups, when created automatically by the serverless framework,
+# get orphaned and are not deleted when the cloudformation stack is deleted.
+# To make sure they are deleted, when the stack is deleted,
+# we create them manually below and include them in the stack. 
+
+Resources:
+  DBMigrationLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+        LogGroupName: /aws/lambda/${self:provider.stackName}-DBMigration
+        RetentionInDays: ${self:provider.logRetentionInDays}

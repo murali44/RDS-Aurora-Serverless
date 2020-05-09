@@ -6,7 +6,7 @@ Resources:
   RDSClusterLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-        LogGroupName: /aws/rds/cluster/${self:custom.stage}-vfan-cluster/postgresql
+        LogGroupName: /aws/rds/cluster/${self:custom.stage}-cluster/postgresql
         RetentionInDays: ${self:provider.logRetentionInDays}
 
   DBSubnetGroup:

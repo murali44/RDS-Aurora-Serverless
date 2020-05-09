@@ -3,6 +3,10 @@ Description: Aurora Serverless Demo
 
 frameworkVersion: '>=1.61.0 <=1.67.0'
 
+plugins:
+  - serverless-python-requirements
+
+
 custom:
   stage: ${opt:stage, self:provider.stage}
   region:
@@ -23,6 +27,7 @@ custom:
         - 'cluster'
         - !Ref AuroraDBCluster
 
+
 provider:
   name: aws
   runtime: python3.7
@@ -35,6 +40,7 @@ provider:
   logs:
     restApi: true
   logRetentionInDays: ${self:custom.logRetention.${self:custom.stage}, self:custom.logRetention.default}
+
 
 functions:
   DBMigration:
@@ -51,6 +57,8 @@ functions:
         ${self:custom.DBClusterARN}
       DB_SECRET_ARN:
         !Ref ClusterSecret
+      DB_NAME: 'rds_demo_db'
+
 
 package:
   exclude:

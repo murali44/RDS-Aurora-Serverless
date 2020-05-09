@@ -1,5 +1,5 @@
 import boto3
-import models
+import db.models as models
 import os
 
 from crhelper import CfnResource

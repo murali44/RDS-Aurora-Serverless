@@ -35,7 +35,7 @@ provider:
   stackName: ${self:custom.stage}-${self:service.name}
   region: ${self:custom.region.${self:custom.stage}, self:custom.region.default}
   stackTags:
-    APP: vfan
+    APP: Aurora Serverless Demo
     STAGE: ${self:custom.stage}
   logs:
     restApi: true

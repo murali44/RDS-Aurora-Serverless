@@ -47,7 +47,7 @@ Resources:
     Type: AWS::SecretsManager::Secret
     Properties:
       Name: ${self:provider.stackName}-AuroraClusterSecret
-      Description: 'This is the Master secret for the vfan RDS Aurora cluster'
+      Description: 'This is the Master secret for the RDS Aurora cluster'
       GenerateSecretString:
         SecretStringTemplate: '{"username": "demo"}'
         GenerateStringKey: 'password'
